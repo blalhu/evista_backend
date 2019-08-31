@@ -2,9 +2,10 @@
 
 namespace ProductBundle\Repository;
 
-use mysql_xdevapi\Exception;
 use OrderBundle\Entity\OrderItem;
 use OrderBundle\Entity\ProductOrder;
+use ProductBundle\Entity\OrderActualizationError;
+use ProductBundle\Exceptions\NotEnoughProductException;
 
 /**
  * ProductRepository
@@ -15,27 +16,42 @@ use OrderBundle\Entity\ProductOrder;
 class ProductRepository extends \Doctrine\ORM\EntityRepository
 {
 
-    public function actualizeOrder( ProductOrder $order )
+    /**
+     * @param ProductOrder $order
+     * @return OrderActualizationError[]
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
+    public function actualizeOrder( ProductOrder $order ): array
     {
+        $errors = [];
         foreach ( $order->getOrderItems() as $orderItem ) {
-            $this->actualizeOrderItem($orderItem);
+            try {
+                $this->actualizeOrderItem($orderItem);
+            } catch (NotEnoughProductException $e) {
+                $errors[] = new OrderActualizationError(
+                    $orderItem->getProduct(),
+                    'Not enough product to fulfil the request for "'.$orderItem->getProduct()->getName().'" product.'
+                );
+            }
         }
-        $this->_em->flush();
+        if ( empty($errors) ) {
+            $this->_em->flush();
+        }
+        return $errors;
     }
 
     private function actualizeOrderItem( OrderItem $item )
     {
         $product = $item->getProduct();
         if ( $product->getAvailableQuantity() < $item->getQuantity() ) {
-            //TODO: throw a specific exception here!
-            throw new Exception('Not enough product!');
+            throw new NotEnoughProductException();
         }
         $product->setAvailableQuantity(
             $product->getAvailableQuantity()
             - $item->getQuantity()
         );
         $this->_em->persist($product);
-        dump($product);
     }
 
 }
