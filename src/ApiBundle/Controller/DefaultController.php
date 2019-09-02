@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class DefaultController extends Controller
 {
@@ -44,56 +45,15 @@ class DefaultController extends Controller
             return new JsonResponse('Items object is missing, empty or not an array!', Response::HTTP_BAD_REQUEST);
         }
         $requestedItems = $requestedItems['items'];
-        $entityManager = $this->get('doctrine.orm.entity_manager');
-        $order = new ProductOrder();
-        $entityManager->beginTransaction();
-        foreach ( $requestedItems as $requestedItem ) {
-            if (
-                empty($requestedItem['id'])
-                || empty($requestedItem['amount'])
-                || !is_integer($requestedItem['id'])
-                || !is_integer($requestedItem['amount'])
-                ) {
-                return new JsonResponse('Each and every order item must contain id and amount fields, and both of these fields should be integers!', Response::HTTP_BAD_REQUEST);
-            }
-            $product = $entityManager->getRepository('ProductBundle\Entity\Product')->find( $requestedItem['id'] );
-            if ( $product === null ) {
-                return new JsonResponse('Product not exists with the following id: #'.$requestedItem['id'].'!', Response::HTTP_BAD_REQUEST);
-            }
-            $orderItem = new OrderItem();
-            $orderItem
-                ->setProduct(  $product )
-                ->setQuantity( $requestedItem['amount'] )
-                ->setProductOrder( $order )
-            ;
-            $entityManager->persist($orderItem);
-            $order->addOrderItem( $orderItem );
+        $processor = $this->get('order.processor');
+        try {
+            $processor->record($requestedItems);
+        } catch ( BadRequestHttpException $e ) {
+            return new JsonResponse($processor->getLastError(), Response::HTTP_BAD_REQUEST);
+        } catch ( ConflictHttpException $e ) {
+            return new JsonResponse($processor->getLastError(), Response::HTTP_CONFLICT);
         }
-        $entityManager->persist($order);
-        $orderErrors = $entityManager->getRepository('ProductBundle\Entity\Product')->actualizeOrder( $order );
-        if (!empty($orderErrors)) {
-            return new JsonResponse($this->OrderErrorsToResponseContent( $orderErrors ), Response::HTTP_CONFLICT);
-        }
-        $entityManager->flush();
-        $entityManager->commit();
         return new JsonResponse();
     }
-
-    /**
-     * @param OrderActualizationError[] $errors
-     * @return string
-     */
-    private function OrderErrorsToResponseContent( array $errors ): array
-    {
-        $encodableArray = [];
-        foreach ($errors as $error) {
-            $encodableArray[] = [
-                'product-id'    => $error->getProduct()->getId(),
-                'error-message' => $error->getErrorMessage(),
-            ];
-        }
-        return $encodableArray;
-    }
-
 
 }
