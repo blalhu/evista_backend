@@ -25,21 +25,20 @@ class OrderProcessor
         $this->entityManager = $entityManager;
     }
 
+    /**
+     * @param $requestedItems
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     * @throws BadRequestHttpException
+     * @throws ConflictHttpException
+     */
     public function record( $requestedItems )
     {
         $this->lastError = null;
         $order = new ProductOrder();
         $this->entityManager->beginTransaction();
         foreach ( $requestedItems as $requestedItem ) {
-            if (
-                empty($requestedItem['id'])
-                || empty($requestedItem['amount'])
-                || !is_integer($requestedItem['id'])
-                || !is_integer($requestedItem['amount'])
-            ) {
-                $this->lastError = 'Each and every order item must contain id and amount fields, and both of these fields should be integers!';
-                throw new BadRequestHttpException();
-            }
+            $this->checkForStructureErrors( $requestedItem );
             $product = $this->entityManager->getRepository('ProductBundle\Entity\Product')->find( $requestedItem['id'] );
             if ( $product === null ) {
                 $this->lastError = 'Product not exists with the following id: #'.$requestedItem['id'].'!';
@@ -83,6 +82,23 @@ class OrderProcessor
             ];
         }
         return $encodableArray;
+    }
+
+    /**
+     * @param $requestedItem
+     * @throws BadRequestHttpException
+     */
+    private function checkForStructureErrors( $requestedItem )
+    {
+        if (
+            empty($requestedItem['id'])
+            || empty($requestedItem['amount'])
+            || !is_integer($requestedItem['id'])
+            || !is_integer($requestedItem['amount'])
+        ) {
+            $this->lastError = 'Each and every order item must contain id and amount fields, and both of these fields should be integers!';
+            throw new BadRequestHttpException();
+        }
     }
 
 }
