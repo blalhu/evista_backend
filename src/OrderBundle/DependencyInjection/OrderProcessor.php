@@ -49,6 +49,7 @@ class OrderProcessor
             $orderItem
                 ->setProduct(  $product )
                 ->setQuantity( $requestedItem['amount'] )
+                ->setOriginalName( $product->getName() )
                 ->setProductOrder( $order )
             ;
             $this->entityManager->persist($orderItem);

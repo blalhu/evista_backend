@@ -37,6 +37,13 @@ class OrderItem
     private $quantity;
 
     /**
+     * @var string
+     *
+     * @ORM\Column(name="original_name", type="string")
+     */
+    private $originalName;
+
+    /**
      * @var ProductOrder
      *
      * @ORM\ManyToOne(targetEntity="OrderBundle\Entity\ProductOrder", inversedBy="orderItems")
@@ -101,6 +108,26 @@ class OrderItem
     {
         return $this->quantity;
     }
+
+    /**
+     * @return string
+     */
+    public function getOriginalName()
+    {
+        return $this->originalName;
+    }
+
+    /**
+     * @param string $originalName
+     * @return OrderItem
+     */
+    public function setOriginalName($originalName)
+    {
+        $this->originalName = $originalName;
+        return $this;
+    }
+
+
 
     /**
      * @return ProductOrder

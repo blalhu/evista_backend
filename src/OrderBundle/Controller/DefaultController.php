@@ -36,7 +36,7 @@ class DefaultController extends Controller
         foreach ( $order->getOrderItems() as $orderItem ) {
             $orderedItems[] = [
                 'product-id'   => $orderItem->getProduct()->getId(),
-                'product-name' => $orderItem->getProduct()->getName(),
+                'product-name' => $orderItem->getOriginalName(),
                 'amount'       => $orderItem->getQuantity(),
             ];
         }
