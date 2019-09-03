@@ -31,8 +31,9 @@ class OrderProcessor
      * @throws \Doctrine\ORM\OptimisticLockException
      * @throws BadRequestHttpException
      * @throws ConflictHttpException
+     * @return int
      */
-    public function record( $requestedItems )
+    public function record( $requestedItems ): int
     {
         $this->lastError = null;
         $order = new ProductOrder();
@@ -61,6 +62,7 @@ class OrderProcessor
         }
         $this->entityManager->flush();
         $this->entityManager->commit();
+        return $order->getId();
     }
 
     public function getLastError()
